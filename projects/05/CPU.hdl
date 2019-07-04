@@ -21,7 +21,7 @@
  * instruction. The addressM and pc outputs are clocked: although they 
  * are affected by the execution of the current instruction, they commit 
  * to their new values only in the next time step. If reset==1 then the 
- * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * CPU jmpps to address 0 (i.e. pc is set to 0 in next time step) rather 
  * than to the address resulting from executing the current instruction. 
  */
 
@@ -40,4 +40,48 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    Or16(a=instruction, b=false, out[0]=jmpGt, out[1]=jmpEq, out[2]=jmpLt, out[3]=destM,
+         out[4]=destD, out[5]=destA, out[6]=comp0, out[7]=comp1, out[8]=comp2, out[9]=comp3,
+         out[10]=comp4, out[11]=comp5, out[12]=compType, out[13]=adv0, out[14]=adv1, out[15]=instructionType); // fan out instruction bits
+
+
+    Mux16(a=instruction, b=outM1, sel=instructionType, out=outToRegA); // select between C and A type insrtuction mode
+
+    DRegister(in=outM1, load=writeD, out=outRegD);
+    ARegister(in=outToRegA, load=writeA, out=outRegA);
+    Mux16(a=outRegA, b=inM, sel=compType, out=outToALU); // select between A and M registers
+    ALU(x=outRegD, y=outToALU, zx=comp5, nx=comp4, zy=comp3, ny=comp2,
+        f=comp1, no=comp0, out=outM1, zr=zOut, ng=nOut);
+
+    
+    // Negation of ALU operation Flags
+    Not(in=zOut, out=zOutNot); 
+    Not(in=nOut, out=nOutNot);
+
+    // Program counter load value Logic
+    And(a=jmpLt, b=nOut, out=loadPc0);
+    And(a=jmpEq, b=zOut, out=loadPc1);
+    And(a=zOutNot, b=nOutNot, out=zOutNotAndnOutNOt);
+    And(a=jmpGt, b=zOutNotAndnOutNOt, out=loadPc2);
+
+    Or8Way(in[0]=loadPc0, in[1]=loadPc1, in[2]=loadPc2, in[3..7]=false, out=loadPc3);
+    And(a=loadPc3, b=instructionType, out=loadPc); // jump only if the instruction is C-type
+
+    // condition for writing to M register
+    Or8Way(in[0]=jmpLt, in[1]=jmpEq, in[2]=jmpGt, in[2..7]=false, out=write1); // check for jump instruction
+    Not(in=write1, out=write2);  // write if no Jump 
+    And(a=write2, b=instructionType, out=write);  // write if C-type instruction
+
+    // conditon fot writing to A register
+    Not(in=instructionType, out=instructionTypeNot);
+    Or(a=destA, b=instructionTypeNot, out=writeA); // write to A if instruction is A-type or the destination is A
+
+    // conditon fot writing to A register
+    And(a=destD, b=instructionType, out=writeD); // write to D if instruction is C-type and the destination is D
+
+    // OUTS
+    Or16(a=outM1, b=false, out=outM);
+    And(a=destM, b=write, out=writeM);
+    Or16(a=outRegA, b=false, out[0..14]=addressM);
+    PC(in=outRegA, load=loadPc, inc=true, reset=reset, out[0..14]=pc);
 }
