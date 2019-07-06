@@ -191,7 +191,7 @@ def ProcessLine(line):
     else:
         return None
     
-    
+# Uncomment the code below go Generate and Test the vaious modules individually
 
         
 #a = '// This file is @ ; part of www.nand2tetris.org\n'
