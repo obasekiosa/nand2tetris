@@ -1,2 +1,2 @@
 # nand2tetris
-Following "Building a computer from first principles" by Noam Nisam and Simon Schocken.
+A complete simulation of a digital computer from basic gates to full operating system
